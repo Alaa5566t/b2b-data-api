@@ -3,6 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 import time
+import os  # Added for dynamic port assignment
 
 app = Flask(__name__)
 
@@ -42,3 +43,8 @@ def scrape_google_maps():
 
     driver.quit()
     return jsonify(results)
+
+# ✅ This block ensures Render detects and binds the correct port
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
