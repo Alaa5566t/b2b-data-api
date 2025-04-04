@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: b2b-data-api
+    env: python
+    buildCommand: ""
+    startCommand: "python app.py"
+    plan: free
