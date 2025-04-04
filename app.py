@@ -23,23 +23,26 @@ def scrape_google_maps():
     driver = webdriver.Chrome(options=options)
 
     driver.get(f"https://www.google.com/maps/search/{query.replace(' ', '+')}")
-    time.sleep(5)
+   time.sleep(10)
 
-    results = []
-    listings = driver.find_elements(By.CLASS_NAME, "hfpxzc")[:5]
+results = []
+listings = driver.find_elements(By.CLASS_NAME, "Nv2PK")[:5]
 
-    for item in listings:
-        try:
-            title = item.text.split("\n")[0]
-            results.append({
-                "company_name": title,
-                "country": country,
-                "industry": niche,
-                "email": "N/A",
-                "phone": "N/A"
-            })
-        except:
-            continue
+print("Found", len(listings), "results.")  # for testing
+
+for item in listings:
+    try:
+        title = item.text.split("\n")[0]
+        results.append({
+            "company_name": title,
+            "country": country,
+            "industry": niche,
+            "email": "N/A",
+            "phone": "N/A"
+        })
+    except:
+        continue
+
 
     driver.quit()
     return jsonify(results)
