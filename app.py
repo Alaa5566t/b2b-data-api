@@ -1,46 +1,50 @@
 from flask import Flask, request, jsonify
-from bs4 import BeautifulSoup
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+import time
 import os
 
 app = Flask(__name__)
 
 @app.route('/scrape', methods=['POST'])
-def yellowpages_scraper():
+def scrape_google_maps():
     data = request.json
-    country = data.get("country", "Saudi Arabia").lower()
-    niche = data.get("niche", "")
+    country = data.get("country")
+    niche = data.get("niche")
     brand = data.get("brand", "")
-    search_query = f"{niche} {brand}".strip().replace(" ", "+")
 
-    url = f"https://www.yellowpages.com.sa/search?q={search_query}"
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
+    query = f"{niche} {brand} in {country}".strip()
 
-    res = requests.get(url, headers=headers)
-    soup = BeautifulSoup(res.text, "html.parser")
-    listings = soup.select(".business-card")[:5]  # Select top 5 listings
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+
+    driver = webdriver.Chrome(options=options)
+
+    driver.get(f"https://www.google.com/maps/search/{query.replace(' ', '+')}")
+    time.sleep(10)
 
     results = []
-    for card in listings:
-        name = card.select_one(".business-name")
-        phone = card.select_one(".phone-number")
-        email = card.select_one(".email")
-        company_name = name.get_text(strip=True) if name else "N/A"
-        phone_number = phone.get_text(strip=True) if phone else "N/A"
-        email_address = email.get_text(strip=True) if email else "N/A"
+    listings = driver.find_elements(By.CLASS_NAME, "Nv2PK")[:5]
 
-        results.append({
-            "company_name": company_name,
-            "country": country.title(),
-            "industry": niche,
-            "email": email_address,
-            "phone": phone_number
-        })
+    for item in listings:
+        try:
+            title = item.text.split("\n")[0]
+            results.append({
+                "company_name": title,
+                "country": country,
+                "industry": niche,
+                "email": "N/A",
+                "phone": "N/A"
+            })
+        except:
+            continue
 
+    driver.quit()
     return jsonify(results)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=5000)
