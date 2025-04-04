@@ -1,47 +1,44 @@
 from flask import Flask, request, jsonify
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-import time
+from bs4 import BeautifulSoup
+import requests
 import os
 
 app = Flask(__name__)
 
 @app.route('/scrape', methods=['POST'])
-def scrape_google_maps():
+def yellowpages_scraper():
     data = request.json
-    country = data.get("country")
-    niche = data.get("niche")
+    country = data.get("country", "Saudi Arabia").lower()
+    niche = data.get("niche", "")
     brand = data.get("brand", "")
+    search_query = f"{niche} {brand}".strip().replace(" ", "+")
 
-    query = f"{niche} {brand} in {country}".strip()
+    url = f"https://www.yellowpages.com.sa/search?q={search_query}"
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
 
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    driver = webdriver.Chrome(options=options)
-
-    driver.get(f"https://www.google.com/maps/search/{query.replace(' ', '+')}")
-    time.sleep(10)  # ⏳ Wait longer for listings to fully load
+    res = requests.get(url, headers=headers)
+    soup = BeautifulSoup(res.text, "html.parser")
+    listings = soup.select(".business-card")[:5]  # Select top 5 listings
 
     results = []
-    listings = driver.find_elements(By.CLASS_NAME, "Nv2PK")[:5]  # updated class
+    for card in listings:
+        name = card.select_one(".business-name")
+        phone = card.select_one(".phone-number")
+        email = card.select_one(".email")
+        company_name = name.get_text(strip=True) if name else "N/A"
+        phone_number = phone.get_text(strip=True) if phone else "N/A"
+        email_address = email.get_text(strip=True) if email else "N/A"
 
-    for item in listings:
-        try:
-            title = item.text.split("\n")[0]
-            results.append({
-                "company_name": title,
-                "country": country,
-                "industry": niche,
-                "email": "N/A",
-                "phone": "N/A"
-            })
-        except Exception as e:
-            continue
+        results.append({
+            "company_name": company_name,
+            "country": country.title(),
+            "industry": niche,
+            "email": email_address,
+            "phone": phone_number
+        })
 
-    driver.quit()
     return jsonify(results)
 
 if __name__ == "__main__":
